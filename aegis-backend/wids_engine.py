@@ -16,7 +16,7 @@ class WidsEngine:
         }
         
         # Safe APs (whitelist)
-        self.whitelist_ssids = ["VIT_Secure", "YourHomeNetwork"]
+        self.whitelist_ssids = ["VIT_Secure", "Aegis_Hub", "S-VIT"]
         
         self.current_threat_level = "SAFE"
         self.active_rogues = []

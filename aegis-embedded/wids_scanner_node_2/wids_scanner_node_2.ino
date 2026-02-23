@@ -2,7 +2,7 @@
 #include <ArduinoWebsockets.h> // Library: ArduinoWebsockets by Gil Maimon
 
 // Configuration
-#define NODE_ID "NODE_1" // Left Airspace Sentinel
+#define NODE_ID "NODE_2" // Right Airspace Sentinel
 const char* ssid = "Aegis_Hub";
 const char* password = "password123";
 const char* websockets_server = "ws://192.168.4.1:8000/ws/wids-ingest"; // Pi's Hotspot IP

@@ -6,8 +6,9 @@ from cryptography.hazmat.backends import default_backend
 
 class CryptoEngine:
     def __init__(self):
-        self.current_key: bytes = None
-        self.last_heartbeat_time: float = 0
+        # Start with a dummy key so the system is SECURE by default for WIDS testing.
+        self.current_key: bytes = b"DUMMY_KEY_FOR_TESTING_WIDS_ONLY!" 
+        self.last_heartbeat_time: float = time.time()
         self.GRACE_PERIOD_SEC = 5.0
         # Dummy "sensitive file/video" data for testing
         self.sensitive_data = b"TOP SECRET: AEGIS-ZONE ZERO TRUST ENCLAVE IS SECURE."
@@ -36,9 +37,10 @@ class CryptoEngine:
         Checks if the grace period has expired. If so, destroys the key.
         """
         if time.time() - self.last_heartbeat_time > self.GRACE_PERIOD_SEC:
-            if self.current_key is not None:
-                print("🚨 CRITICAL: Heartbeat lost! Destroying AES keys...")
-                self.current_key = None
+            pass # IGNORING BIO-LOCK DROP FOR WIDS TESTING
+            # if self.current_key is not None:
+            #    print("🚨 CRITICAL: Heartbeat lost! Destroying AES keys...")
+            #    self.current_key = None
 
     def encrypt_data(self, data: bytes) -> bytes:
         if self.current_key is None:
