@@ -37,10 +37,9 @@ class CryptoEngine:
         Checks if the grace period has expired. If so, destroys the key.
         """
         if time.time() - self.last_heartbeat_time > self.GRACE_PERIOD_SEC:
-            pass # IGNORING BIO-LOCK DROP FOR WIDS TESTING
-            # if self.current_key is not None:
-            #    print("🚨 CRITICAL: Heartbeat lost! Destroying AES keys...")
-            #    self.current_key = None
+            if self.current_key is not None:
+                print("🚨 CRITICAL: Heartbeat lost! Destroying AES keys...")
+                self.current_key = None
 
     def encrypt_data(self, data: bytes) -> bytes:
         if self.current_key is None:

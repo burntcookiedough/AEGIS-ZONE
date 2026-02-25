@@ -1,21 +1,71 @@
-const int HEARTBEAT_PIN = 34; // Analog pin for Bio-Lock
-const int BAUD_RATE = 115200;
+#include <Wire.h>
+#include "MAX30105.h"
+#include "heartRate.h"
 
-void setup() {
-  Serial.begin(BAUD_RATE);
-  // Optional: Add a delay to let the serial monitor connect
+MAX30105 particleSensor;
+
+const byte RATE_SIZE = 4; 
+byte rates[RATE_SIZE];
+byte rateSpot = 0;
+long lastBeat = 0;
+
+float beatsPerMinute;
+int beatAvg;
+
+void setup()
+{
+  Serial.begin(115200);
   delay(1000);
-  Serial.println("AEGIS-ZONE Bio-Lock Node Initialized");
+
+  Wire.begin(21, 22);   // SDA, SCL for your ESP32
+
+  Serial.println("Initializing sensor...");
+
+  if (!particleSensor.begin(Wire, I2C_SPEED_FAST))
+  {
+    Serial.println("MAX30102 not found. Check wiring.");
+    while (1);
+  }
+
+  particleSensor.setup();
+  particleSensor.setPulseAmplitudeRed(0x0A);
+  particleSensor.setPulseAmplitudeIR(0x1F);
+
+  Serial.println("Place your finger on the sensor.");
 }
 
-void loop() {
-  // Read the raw analog voltage from the heartbeat sensor
-  int rawValue = analogRead(HEARTBEAT_PIN);
-  
-  // Format the output specifically so the Python backend can parse it cleanly
-  Serial.print("BIO:");
-  Serial.println(rawValue);
-  
-  // High-frequency loop but with a small delay to avoid flooding serial buffer entirely
-  delay(20); // ~50Hz sampling rate
+void loop()
+{
+  long irValue = particleSensor.getIR();
+
+  if (checkForBeat(irValue) == true)
+  {
+    long delta = millis() - lastBeat;
+    lastBeat = millis();
+
+    beatsPerMinute = 60 / (delta / 1000.0);
+
+    if (beatsPerMinute < 255 && beatsPerMinute > 20)
+    {
+      rates[rateSpot++] = (byte)beatsPerMinute;
+      rateSpot %= RATE_SIZE;
+
+      beatAvg = 0;
+      for (byte x = 0; x < RATE_SIZE; x++)
+        beatAvg += rates[x];
+      beatAvg /= RATE_SIZE;
+    }
+  }
+
+  Serial.print("IR=");
+  Serial.print(irValue);
+  Serial.print(" BPM=");
+  Serial.print(beatsPerMinute);
+  Serial.print(" Avg BPM=");
+  Serial.print(beatAvg);
+
+  if (irValue < 50000)
+    Serial.print("  No finger?");
+
+  Serial.println();
 }

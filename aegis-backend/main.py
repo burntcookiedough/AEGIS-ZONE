@@ -35,12 +35,17 @@ connected_clients: list[WebSocket] = []
 
 def find_arduino_port():
     """Helps find the connected ESP32 based on description"""
+    import platform
     ports = serial.tools.list_ports.comports()
     for port, desc, hwid in sorted(ports):
-        if "CP210" in desc or "CH340" in desc or "Serial" in desc:
+        # When unpacked, 'port' is a string like '/dev/ttyUSB0' or 'COM3'
+        if "CP210" in desc or "CH340" in desc or "Serial" in desc or "ttyUSB" in port or "ttyACM" in port:
             return port
-    # Fallback to COM3 if not explicitly found, user might need to configure this
-    return "COM3"
+    
+    # Fallback platform-specific
+    if platform.system() == "Windows":
+        return "COM3"
+    return "/dev/ttyUSB0"
 
 def bio_lock_reader_thread():
     """
@@ -57,19 +62,25 @@ def bio_lock_reader_thread():
         while True:
             try:
                 line = ser.readline().decode('utf-8', errors='ignore').strip()
-                if line.startswith("BIO:"):
-                    val_str = line.split("BIO:")[1]
-                    try:
-                        val = int(val_str)
-                        latest_heartbeat_val = val
-                        heartbeat_window.append(val)
-                        
-                        # Once we have enough entropy (values), update the crypto engine
-                        if len(heartbeat_window) >= 10:
-                            crypto.update_heartbeat(list(heartbeat_window))
-                            
-                    except ValueError:
+                # Parse the new MAX30105 format: IR=52000 BPM=85 Avg BPM=84
+                if line.startswith("IR="):
+                    # If finger is removed, don't update the heartbeat window so grace period expires
+                    if "No finger?" in line:
                         pass
+                    else:
+                        try:
+                            # Extract the raw IR value for high-entropy continuous variance
+                            ir_str = line.split(" ")[0].split("=")[1]
+                            val = int(ir_str)
+                            latest_heartbeat_val = val
+                            heartbeat_window.append(val)
+                            
+                            # Once we have enough entropy (values), update the crypto engine
+                            if len(heartbeat_window) >= 10:
+                                crypto.update_heartbeat(list(heartbeat_window))
+                                
+                        except (IndexError, ValueError):
+                            pass
             except serial.SerialException:
                 print("Lost connection to Bio-Lock node. Retrying in 2s...")
                 ser.close()
