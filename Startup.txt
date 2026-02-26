@@ -1,0 +1,54 @@
+AEGIS-ZONE Full Startup Procedure
+Step 1 — Power On the Raspberry Pi
+Plug in your Raspberry Pi 4 via Ethernet to your Windows laptop (192.168.137.2). SSH into it:
+
+powershell
+ssh raspi@192.168.137.2
+Step 2 — Enable the Wi-Fi Hotspot on the Pi
+This creates the Aegis_Hub network that the WIDS scanner ESP32s connect to:
+
+bash
+sudo nmcli device wifi hotspot ssid Aegis_Hub password password123 ifname wlan0
+sudo nmcli connection modify Hotspot ipv4.addresses 192.168.4.1/24 ipv4.method shared
+sudo nmcli connection up Hotspot
+Step 3 — Start the Backend on the Pi
+bash
+cd ~
+./start_aegis.sh
+This spins up the Python FastAPI backend on port 8000, listening for Bio-Lock serial data and WIDS WebSocket connections.
+
+Step 4 — Plug in the Bio-Lock ESP32
+Connect the Bio-Lock ESP32 (the one with the MAX30105 finger sensor) into any USB port on the Raspberry Pi. The backend will auto-detect it on /dev/ttyUSB0 and begin ingesting IR data.
+
+Step 5 — Power On the WIDS Scanner ESP32s
+Plug both WIDS Scanner ESP32s (Node 1 and Node 2) into any USB power source (power bank, wall charger, or the Pi itself if it has spare ports). They will:
+
+Automatically connect to Aegis_Hub Wi-Fi
+Automatically connect to ws://192.168.4.1:8000/ws/wids-ingest
+Start sweeping the 2.4 GHz airspace every 1 second
+Step 6 — Start the Frontend on Your Windows Laptop
+Open a new PowerShell terminal:
+
+powershell
+cd c:\Users\anshu\Desktop\AEGIS-ZONE\aegis-frontend
+npm run dev
+Step 7 — Open the Dashboard
+Open your browser to http://localhost:3000
+
+Step 8 — Activate the System
+Place your finger on the MAX30105 sensor. Within ~2 seconds:
+
+The Bio-Lock pulse chart turns green
+The webcam feed becomes visible with a "LIVE — AES-256 DECRYPTED" badge
+The Threat Radar populates with detected networks
+How to Test Lockdown
+Method A — Remove your finger from the sensor. After exactly 5.0 seconds, the dashboard switches to animated static noise with "FEED ENCRYPTED".
+
+Method B — Turn on a phone hotspot (with an SSID not in the whitelist) and walk within ~1.5 metres of the WIDS scanners. The system instantly purges the keys — no grace period.
+
+How to Stop Everything
+On the Pi:
+
+bash
+pkill -f uvicorn
+On your laptop, press Ctrl+C in the PowerShell terminal running npm run dev.

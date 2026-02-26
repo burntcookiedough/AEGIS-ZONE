@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import BioLockChart from "@/components/BioLockChart";
 import ThreatRadar from "@/components/ThreatRadar";
 
@@ -9,6 +9,11 @@ export default function Dashboard() {
   const [encryptionState, setEncryptionState] = useState({ status: "LOCKED", frame: null as string | null, key_derived: false });
   const [widsState, setWidsState] = useState({ threat_level: "SAFE", networks: [] });
   const [wsConnected, setWsConnected] = useState(false);
+
+  // Webcam refs and state
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const staticCanvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
     // Automatically use the host IP if not localhost, otherwise use Pi's static IP for testing
@@ -40,6 +45,68 @@ export default function Dashboard() {
   }, []);
 
   const isSecure = encryptionState.status === "SECURE" && widsState.threat_level !== "CRITICAL_BREACH";
+
+  // ── Webcam Initialization ──
+  useEffect(() => {
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.warn("Webcam not available:", err);
+      }
+    }
+    startCamera();
+
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+        tracks.forEach(t => t.stop());
+      }
+    };
+  }, []);
+
+  // ── Animated Static Noise (CRT TV effect) when locked ──
+  useEffect(() => {
+    if (isSecure) {
+      cancelAnimationFrame(animFrameRef.current);
+      return;
+    }
+
+    const canvas = staticCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    function drawNoise() {
+      if (!canvas || !ctx) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const imageData = ctx.createImageData(canvas.width, canvas.height);
+      const buf = imageData.data;
+      for (let i = 0; i < buf.length; i += 4) {
+        const v = Math.random() * 255;
+        buf[i] = v;
+        buf[i + 1] = v;
+        buf[i + 2] = v;
+        buf[i + 3] = 180;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      for (let y = 0; y < canvas.height; y += 4) {
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.fillRect(0, y, canvas.width, 2);
+      }
+      animFrameRef.current = requestAnimationFrame(drawNoise);
+    }
+    drawNoise();
+
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [isSecure]);
 
   return (
     <main className="min-h-screen bg-[#050505] text-gray-200 p-8 font-mono selection:bg-teal-500/30">
@@ -85,29 +152,37 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="flex-1 flex items-center justify-center border border-gray-800 rounded bg-black/50 relative object-cover z-20">
-              {isSecure ? (
-                <div className="text-center p-8">
-                  <div className="text-4xl mb-4">🛡️</div>
-                  <h2 className="text-2xl font-bold text-gray-100 uppercase tracking-widest">Access Granted</h2>
-                  <p className="text-teal-400 font-mono mt-4 text-sm max-w-md mx-auto">
-                    Biometric signature validated and physical airspace secured.
-                  </p>
-                  <div className="mt-8 p-4 border border-gray-800 bg-black text-left text-xs text-gray-500 max-h-32 overflow-hidden break-words">
-                    {/* Simulated decrypted stream hex */}
-                    {encryptionState.frame ? encryptionState.frame.substring(0, 500) + '...' : 'Streaming...'}
-                  </div>
+            <div className="flex-1 flex items-center justify-center border border-gray-800 rounded bg-black/50 relative overflow-hidden z-20" style={{ minHeight: '360px' }}>
+              {/* Live Webcam Feed — always running in the background */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-500 ${isSecure ? 'opacity-100' : 'opacity-0'}`}
+              />
+
+              {/* Secure overlay label */}
+              {isSecure && (
+                <div className="absolute bottom-4 left-4 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded border border-teal-500/30">
+                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+                  <span className="text-teal-400 text-xs font-mono font-bold tracking-wider">LIVE — AES-256 DECRYPTED</span>
                 </div>
-              ) : (
-                <div className="absolute inset-0">
-                  {/* Static Noise Overlay */}
-                  <div className="w-full h-full opacity-30 mix-blend-screen" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}></div>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-10 backdrop-blur-[2px]">
+              )}
+
+              {/* Static noise overlay when LOCKED */}
+              {!isSecure && (
+                <div className="absolute inset-0 z-20">
+                  <canvas
+                    ref={staticCanvasRef}
+                    className="w-full h-full"
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-30">
                     <div className="text-6xl text-red-500/80 mb-6 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">⚠️</div>
-                    <h2 className="text-3xl font-black text-white tracking-widest drop-shadow-md">SYSTEM PURGED</h2>
+                    <h2 className="text-3xl font-black text-white tracking-widest drop-shadow-md">FEED ENCRYPTED</h2>
                     <p className="text-red-400 font-bold mt-2 uppercase tracking-wide">Analog Keys Destroyed</p>
                     <p className="text-gray-400 text-sm mt-4 max-w-sm">
-                      Please restore Biometric Pulse OR remove Rogue Access Points from physical premises to re-derive session keys.
+                      Restore Biometric Pulse or remove Rogue Access Points to re-derive session keys.
                     </p>
                   </div>
                 </div>
