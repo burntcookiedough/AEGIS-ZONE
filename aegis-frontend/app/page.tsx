@@ -11,8 +11,12 @@ export default function Dashboard() {
   const [wsConnected, setWsConnected] = useState(false);
 
   useEffect(() => {
-    // Connect to FastAPI WebSocket on the Raspberry Pi
-    const ws = new WebSocket("ws://192.168.137.2:8000/ws/dashboard");
+    // Automatically use the host IP if not localhost, otherwise use Pi's static IP for testing
+    const wsHost = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+      ? window.location.hostname
+      : '192.168.137.2';
+
+    const ws = new WebSocket(`ws://${wsHost}:8000/ws/dashboard`);
 
     ws.onopen = () => setWsConnected(true);
     ws.onclose = () => setWsConnected(false);
