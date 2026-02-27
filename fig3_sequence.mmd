@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant O as Operator
+    participant B as Bio-Lock Node
+    participant R as RF Scanner Nodes
+    participant H as Hub (Crypto + WIDS)
+    participant D as Dashboard
+    participant A as Rogue AP
+
+    rect rgb(236, 253, 245)
+        note right of O: ── NORMAL SECURE OPERATION ──
+        O->>B: 1. Finger contact
+        B->>H: 2. PPG IR readings (serial)
+        H->>H: 3. SHA-3 key derivation<br/>AES-256 key = active
+        H->>D: 4. Status: SECURE + clear video
+    end
+
+    rect rgb(254, 242, 242)
+        note right of O: ── ATTACK SCENARIO ──
+        A->>R: 5. Rogue SSID broadcast<br/>(RSSI = -32 dBm)
+        R->>H: 6. WIDS sweep JSON<br/>(non-whitelisted, -32 dBm)
+        H->>H: 7. Classify: CRITICAL_BREACH<br/>Key = None (destroyed)
+        H->>D: 8. Status: LOCKED
+        D->>D: 9. Render CRT static noise<br/>'FEED ENCRYPTED'
+    end
+
+    rect rgb(239, 246, 255)
+        note right of O: ── AUTOMATIC RECOVERY ──
+        O->>B: 10. Finger re-contact
+        B->>H: 11. New PPG stream -> Key re-derived in ~2.1 s
+        H->>D: 12. SECURE + live video
+    end
