@@ -1,0 +1,27 @@
+# Root workspace hygiene
+__pycache__/
+*.py[cod]
+*.log
+
+# Python environments
+.venv/
+venv/
+env/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Patent and disclosure artifacts
+patent_figures/
+patent_draft.txt
+generate_patent_figures.py
+generate_brcm_figure.py
+fig3_sequence.mmd
+Invention_Disclosure_*.pdf
