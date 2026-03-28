@@ -140,8 +140,3 @@ These choices are reasonable for a lab prototype, but they should be externalize
 
 For the original Raspberry Pi + laptop workflow, see `Startup.txt`. For a combined launch script on Linux/Raspberry Pi, use `start_aegis.sh`.
 
-## Hardware Photos
-
-![Mouse sensor housing](./Hardware%20Pics/Mouse.jpeg)
-![Sensor](./Hardware%20Pics/Sensor.jpeg)
-![Raspberry Pi](./Hardware%20Pics/Rasberry%20Pi.jpeg)
