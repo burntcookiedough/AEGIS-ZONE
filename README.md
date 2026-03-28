@@ -140,3 +140,13 @@ These choices are reasonable for a lab prototype, but they should be externalize
 
 For the original Raspberry Pi + laptop workflow, see `Startup.txt`. For a combined launch script on Linux/Raspberry Pi, use `start_aegis.sh`.
 
+## Future Improvements
+
+- Externalize runtime configuration using environment variables
+- Add persistent threat logging and audit trails
+- Improve biometric validation robustness
+- Enhance WIDS whitelist management via dashboard controls
+
+## License
+
+This project is intended for academic and prototype demonstration purposes.
